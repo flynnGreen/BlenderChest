@@ -1,5 +1,6 @@
 # BlenderChest
 This is a python script by Flynn Green that allows the user to automate creation of a low poly chest in Blender!
+
 To use:
 1. Go to the Scripting tab of Blender
 2. Run the script from the play button or alt+P
