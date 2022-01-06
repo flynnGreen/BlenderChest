@@ -1,0 +1,153 @@
+import bpy
+import mathutils
+import math
+
+class CreateChest(bpy.types.Operator):
+    """Create Chest"""
+    bl_idname = "object.create_chest"
+    bl_label = "Create Chest"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    basewidth: bpy.props.FloatProperty(name="Width", default=1.5, min=0.5, max=5.0)
+    baselength: bpy.props.FloatProperty(name="Length", default=0.7, min=0.5, max=5.0)
+    height: bpy.props.FloatProperty(name="Height", default=1.0, min=0.5, max=5.0)
+    thickness: bpy.props.FloatProperty(name ="Board Thickness", default=0.1, min=0.05, max=0.5)
+    sides: bpy.props.IntProperty(name="Number of Side Boards", default=3, min=3, max=10)
+    slats: bpy.props.IntProperty(name="Number of Lid Slats", default=5, min=2, max=30)
+    haslock: bpy.props.BoolProperty(name="Has Lock", default=True)
+    
+    def execute(self, context):
+        boarddistance = self.height / self.sides
+        boardposition = boarddistance
+        
+        #Base
+        bpy.ops.mesh.primitive_cube_add()
+        base = bpy.context.active_object
+        base.scale = (self.basewidth, self.baselength, boarddistance / 2)
+        base.location = (0, 0, 0)
+        
+        #Front
+        for i in range(0, self.sides):
+            bpy.ops.mesh.primitive_cube_add()
+            board = bpy.context.active_object
+            board.scale = (self.basewidth, self.thickness, boarddistance)
+            board.location = (0.0, -self.baselength + self.thickness, (boardposition + (boarddistance / 2)))
+            boardposition = boardposition + (boarddistance * 2)
+            
+        #Back
+        boardposition = boarddistance
+        for i in range(0, self.sides):
+            bpy.ops.mesh.primitive_cube_add()
+            board = bpy.context.active_object
+            board.scale = (self.basewidth, self.thickness, boarddistance)
+            board.location = (0.0, self.baselength - self.thickness, (boardposition + (boarddistance / 2)))
+            boardposition = boardposition + (boarddistance * 2)
+            
+        #Right
+        boardposition = boarddistance
+        for i in range(0, self.sides):
+            bpy.ops.mesh.primitive_cube_add()
+            board = bpy.context.active_object
+            board.scale = (self.thickness, self.baselength - (self.thickness * 2), boarddistance)
+            board.location = (self.basewidth - self.thickness, 0.0, (boardposition + (boarddistance / 2)))
+            boardposition = boardposition + (boarddistance * 2)
+            
+        #Left
+        boardposition = boarddistance
+        for i in range(0, self.sides):
+            bpy.ops.mesh.primitive_cube_add()
+            board = bpy.context.active_object
+            board.scale = (self.thickness, self.baselength - (self.thickness * 2), boarddistance)
+            board.location = (-self.basewidth + self.thickness, 0.0, (boardposition + (boarddistance / 2)))
+            boardposition = boardposition + (boarddistance * 2)
+
+        #Lock
+        if (self.haslock == True):
+            bpy.ops.mesh.primitive_cube_add()
+            lock = bpy.context.active_object
+            lock.scale = (self.basewidth / 4, self.thickness / 2, boarddistance / 1.5)
+            lock.location = (0.0, -self.baselength - (self.thickness / 2), boardposition - (boarddistance * 2))
+            
+        #Left Lid
+        boardposition = boardposition - (boarddistance / 2)
+        
+        leftvertices = []
+        leftfaces = []
+        leftvertices.append(mathutils.Vector((self.basewidth, 0, boardposition)))
+        angle = math.radians(180 / self.slats)
+        
+        for i in range(1, self.slats + 2):
+            leftvertices.append(mathutils.Vector((self.basewidth, self.baselength * math.cos(angle * (i - 1)), boardposition + math.sin(angle * (i - 1)))))
+        
+        for i in range(0, self.slats):
+            leftfaces.append([0, i + 1, i + 2])
+        
+        leftmesh = bpy.data.meshes.new("Left Lid")
+        leftmesh.from_pydata \
+            (
+                leftvertices,
+                [],
+                leftfaces
+            )
+        
+        leftmesh.update()
+        NewObj = bpy.data.objects.new("Left Lid", leftmesh)
+        context.scene.collection.objects.link(NewObj)
+        
+        #Right Lid
+        rightvertices = []
+        rightfaces = []
+        rightvertices.append(mathutils.Vector((-self.basewidth, 0, boardposition)))
+        angle = math.radians(180 / self.slats)
+        
+        for i in range(1, self.slats + 2):
+            rightvertices.append(mathutils.Vector((-self.basewidth, self.baselength * math.cos(angle * (i - 1)), boardposition + math.sin(angle * (i - 1)))))
+        
+        for i in range(0, self.slats):
+            rightfaces.append([0, i + 1, i + 2])
+        
+        rightmesh = bpy.data.meshes.new("Right Lid")
+        rightmesh.from_pydata \
+            (
+                rightvertices,
+                [],
+                rightfaces
+            )
+        
+        rightmesh.update()
+        NewObj = bpy.data.objects.new("Right Lid", rightmesh)
+        context.scene.collection.objects.link(NewObj)
+        
+        #Slats
+        slatvertices = leftvertices + rightvertices
+        slatfaces = []
+        
+        for i in range(0, self.slats):
+            slatfaces.append([i + 1, i + 1 + self.slats + 2, i + 1 + self.slats + 3, i + 2])
+        
+        slatmesh = bpy.data.meshes.new("Slats")
+        slatmesh.from_pydata \
+            (
+                slatvertices,
+                [],
+                slatfaces
+            )
+        
+        slatmesh.update()
+        NewObj = bpy.data.objects.new("Slats", slatmesh)
+        context.scene.collection.objects.link(NewObj)
+        
+        return {'FINISHED'}
+
+def menu_func(self, context):
+    self.layout.operator(CreateChest.bl_idname)
+        
+def register():
+    bpy.utils.register_class(CreateChest)
+    bpy.types.VIEW3D_MT_mesh_add.append(menu_func)
+        
+def unregister():
+    bpy.utils.unregister_class(CreateChest)
+        
+if __name__ == "__main__":
+    register()
